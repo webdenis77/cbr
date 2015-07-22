@@ -1,0 +1,21 @@
+{
+	"name": "nabarabane/cbr",
+	"type": "library",
+	"description": "Курсы валют ЦБ РФ",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Denis Gerasimov",
+			"email": "mailbox.gerasimov@gmail.com",
+			"role": "Developer"
+		}
+	],
+	"require": {
+		"php": ">=5.4.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"CBR\\": "src/"
+		}
+	}
+}
