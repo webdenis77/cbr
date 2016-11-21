@@ -97,7 +97,7 @@ class CurrencyDaily
 		$xpath = $xml->xpath('Valute['.$codes.']');
 		$result = [];
 		foreach ($xpath as $element) {
-			$k = ($key == self::KEY_CODE)
+			$k = ($key == self::KEY_CHAR)
 				? (string)$element->CharCode
 				: (($key == self::KEY_ID) ? (string)$element->attributes()['ID'] : (string)$element->CharCode);
 
