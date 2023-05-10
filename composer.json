@@ -1,15 +1,8 @@
 {
-	"name": "nabarabane/cbr",
+	"name": "webdenis77/cbr",
 	"type": "library",
-	"description": "Курсы валют ЦБ РФ",
+	"description": "Библиотека для получения и парсинга XML-данных ЦБ России о курсах валют.",
 	"license": "MIT",
-	"authors": [
-		{
-			"name": "Denis Gerasimov",
-			"email": "mailbox.gerasimov@gmail.com",
-			"role": "Developer"
-		}
-	],
 	"require": {
 		"php": ">=5.4.0"
 	},
