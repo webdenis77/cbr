@@ -1,14 +1,17 @@
 {
-	"name": "webdenis77/cbr",
-	"type": "library",
-	"description": "Библиотека для получения и парсинга XML-данных ЦБ России о курсах валют.",
-	"license": "MIT",
-	"require": {
-		"php": ">=5.4.0"
-	},
-	"autoload": {
-		"psr-4": {
-			"CBR\\": "src/"
-		}
-	}
+    "name": "webdenis77/cbr",
+    "type": "library",
+    "description": "Библиотека для получения и парсинга XML-данных ЦБ России о курсах валют.",
+    "license": "MIT",
+    "require": {
+        "php": ">=5.4.0",
+        "ext-curl": "*",
+        "ext-libxml": "*",
+        "ext-simplexml": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "CBR\\": "src/"
+        }
+    }
 }
