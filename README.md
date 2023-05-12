@@ -1,91 +1,141 @@
 # Курсы валют ЦБ России
+
 **Библиотека для получения и парсинга XML-данных ЦБ России о курсах валют.**
 
 ## Доступные ресурсы
-**Котировки на заданный день**  
-[http://www.cbr.ru/scripts/XML_daily.asp](http://www.cbr.ru/scripts/XML_daily.asp)  
-Возможно получение как полного списка, так и фильтрация по выбранным кодам валют (USD, EUR и т.д.).  
 
-**Динамика котировок выбранной валюты**  
-[http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=10/07/2015&date_req2=20/07/2015&VAL_NM_RQ=R01235](http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=10/07/2015&date_req2=20/07/2015&VAL_NM_RQ=R01235)
+* Справочник валют
+* Котировки на заданный день
+* Динамика котировок за период времени
 
 **Вывод данных:** XML или PHP-массив.
 
 ## Установка
 ### Composer
-Добавьте в блок "require" в composer.json вашего проекта:
-```json
-"webdenis77/cbr": "~1.0"
-```
-или в командной строке:
 ```sh
-composer require webdenis77/cbr:~1.0
+composer require webdenis77/cbr:^2.0
 ```
 
 ### Обычная
-Скачайте и распакуйте архив с файлами в нужное вам место, затем подключите автолоадер библиотеки:
+Скачайте и распакуйте архив с библиотекой в нужное вам место, затем подключите автолоадер библиотеки:
 ```php
-require('Autoloader.php');
+require('path-to-package/autoloader.php');
 ```
 
 ## Использование
-### Котировки на заданный день
-[http://www.cbr.ru/scripts/XML_daily.asp](http://www.cbr.ru/scripts/XML_daily.asp)  
+
+### Справочник валют
+
+[http://www.cbr.ru/scripts/XML_valFull.asp](http://www.cbr.ru/scripts/XML_valFull.asp)
+
 ```php
 <?php
 
-use CBR\CurrencyDaily;
+try {
+    
+    $resource = new \CBR\Catalog();
+    
+    $result = $resource
+        // Опционально, фильтр по типам валют
+        ->setType(\CBR\Catalog::TYPE_DAILY) // Валюты, устанавливаемые ежедневно (по умолчанию)
+        ->setType(\CBR\Catalog::TYPE_MONTHLY) // Валюты, устанавливаемые ежемесячно
+        
+        // Выполнение запроса 
+        ->request()
+        
+        // Получение необработанного ответа
+        ->getResultXML();
+        
+        // Получение обработанного ответа
+        ->getResult();
+
+} catch (\Exception $e) {
+    // Обработка исключения
+}
+```
+
+### Котировки на заданный день
+
+[http://www.cbr.ru/scripts/XML_daily.asp](http://www.cbr.ru/scripts/XML_daily.asp)
+
+```php
+<?php
 
 try {
-    $handler = new CurrencyDaily();
-    $result = $handler
-        ->setDate('20/07/2015') // Опционально, дата в формате "d/m/Y"
-        ->setCodes(['USD', 'EUR']) // Опционально, фильтр по кодам валют
-        //->setCodes(['840', '978']) Или можно так
-        ->request() // Выполнение запроса
+    
+    $resource = new \CBR\CurrencyDaily();
+    
+    $result = $resource
+        // Опционально, дата в становленном формате
+        ->setDateFormat('d/m/Y')
+        ->setDate('20/07/2015')
+        
+        ->setDateFormat('Y-m-d')
+        ->setDate('2015-07-20')
+        
+        // Опционально, фильтр по кодам валют в установленном формате
+        ->setKeyFormat(\CBR\Resource::KEY_CHAR)
+        ->setCurrencies(['USD', 'EUR'])
+        
+        ->setKeyFormat(\CBR\Resource::KEY_NUM)
+        ->setCurrencies(['840', '978'])
+        
+        ->setKeyFormat(\CBR\Resource::KEY_ID)
+        ->setCurrencies(['R01235', 'R01239'])
+        
+        // Выполнение запроса
+        ->request()
+        
+        // Получение необработанного ответа
+        ->getResultXML();
+        
+        // Получение обработанного ответа
         ->getResult();
-    /* Вернется именованный массив
-    ->getResult() - ключи по умолчанию: буквенные коды валют (USD, EUR)
-    ->getResult(CurrencyDaily::KEY_NUM) - ключи: цифровые коды валют (840, 978)
-    ->getResult(CurrencyDaily::KEY_ID) - ключи: уникальные ID валют в формате Банка России,
-    используются для получения динамики котировок по валюте за период времени */
+        /* Вернется именованный массив
+        Ключи - коды валют, установленные через ->setKeyFormat()
+        По умолчанию - \CBR\Resource::KEY_CHAR */
 
-    /* Дата обновления ставок в результате может не совпадать с той, которую вы указали (по выходным дням,
-    например, ставки не обновляются). Актуальная дата, по которой вы получили информацию
-    сохраняется в хендлере после вызова getResult() и ее можно получить так */
-    $date = $handler->getResultDate('Y-m-d'); // Формат по умолчанию - 'Y-m-d'
-
-    /* Вывод в XML
-    Возвращает оригинальный XML, полученный с сервера, игнорирует фильтр по кодам валют.
-    Я подразумеваю, если вам нужен XML на выходе, то вы отлично знаете, что с ним делать */
-    ->getResultXML();
+    /* Дата обновления ставок в результате может не совпадать с той, которую вы указали
+    (по выходным дням, например, ставки не обновляются).
+    Актуальная дата, по которой вы получили информацию
+    сохраняется в обработчике после вызова getResult() и ее можно получить так: */
+    $result_date = $resource->getResultDate();
 } catch (\Exception $e) {
-	echo $e->getMessage();
+    // Обработка исключения
 }
 ```
 
 ### Динамика котировок за период времени
-Справочник кодов валют формата Банка России - [http://www.cbr.ru/scripts/XML_val.asp](http://www.cbr.ru/scripts/XML_val.asp)
+
 ```php
 <?php
 
-use CBR\CurrencyPeriod;
-
 try {
-    $result = (new CurrencyPeriod())
-    	->setDateFrom('20/06/2015') // Дата "c" в формате "d/m/Y"
-    	->setDateTo('20/07/2015') // Дата "по" в формате "d/m/Y"
-    	->setCurrency('R01535') // Код валюты в формате Банка России
-    	->request() // Выполнение запроса
+    $resource = new \CBR\CurrencyPeriod();
+    
+    $result = $resource
+        // Даты "c" и "по" в установленном формате
+        ->setDateFormat('d/m/Y')
+    	->setInterval('20/06/2015', '20/07/2015')
+    	
+        ->setDateFormat('Y-m-d')
+        ->setInterval('2015-06-20', '2015-07-20')
+    	
+    	// Код валюты в формате Банка России 
+    	->setCurrency('R01535')
+    	
+    	// Выполнение запроса
+    	->request()
+    	
+    	// Получение необработанного ответа
+    	->getResultXML();
+    	
+    	// Получение обработанного ответа
     	->getResult();
-    /* Вернется именованный массив.
-    Ключи по умолчанию - дата в формате 'Y-m-d'
-    Нужный формат можно передать в метод параметром
-    ->getResult('Y/m/d')
-
-    /* Вывод в XML */
-    ->getResultXML();
+        /* Вернется именованный массив
+        Ключи - дата в формате, установленном через >setDateFormat() */
+   
 } catch (\Exception $e) {
-	echo $e->getMessage();
+    // Обработка исключения
 }
 ```
