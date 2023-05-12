@@ -4,11 +4,44 @@ namespace CBR;
 
 abstract class Resource
 {
-    const KEY_CHAR = 'CHAR_CODE';
-    const KEY_NUM = 'NUM_CODE';
+    const KEY_CHAR = 'CHAR';
+    const KEY_NUM = 'NUM';
     const KEY_ID = 'ID';
 
+    /** @var string */
+    protected $date_format = 'd/m/Y';
+
+    /** @var string */
+    protected $key_format;
+
+    /** @var string */
     protected $result;
+
+    /**
+     * Устновка формата даты.
+     *
+     * @param string $format
+     * @return $this
+     */
+    public function setDateFormat($format)
+    {
+        $this->date_format = $format;
+
+        return $this;
+    }
+
+    /**
+     * Установка формата ключа.
+     *
+     * @param $format
+     * @return $this
+     */
+    public function setKeyFormat($format)
+    {
+        $this->key_format = $format;
+
+        return $this;
+    }
 
     /**
      * Получение адреса запроса.
@@ -46,5 +79,5 @@ abstract class Resource
         return $this->result;
     }
 
-    abstract public function getResult($key_format);
+    abstract public function getResult();
 }

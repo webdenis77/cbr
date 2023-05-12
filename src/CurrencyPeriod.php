@@ -2,67 +2,95 @@
 
 namespace CBR;
 
-class CurrencyPeriod
+use DateTime;
+use Exception;
+use SimpleXMLElement;
+
+class CurrencyPeriod extends Resource
 {
-	private $date_from;
-	private $date_to;
-	private $currency;
-	private $result;
+    /** @var string */
+    private $date_from;
 
-	public function setDateFrom($date)
-	{
-		$this->date_from = $date;
+    /** @var string */
+    private $date_to;
 
-		return $this;
-	}
+    /** @var string */
+    private $currency;
 
-	public function setDateTo($date)
-	{
-		$this->date_to = $date;
+    /**
+     * Установка фильтра по датам.
+     *
+     * @param string $date_from
+     * @param string $date_to
+     * @return $this
+     */
+    public function setInterval($date_from, $date_to)
+    {
+        $datetime_from = DateTime::createFromFormat($this->date_format, $date_from);
+        $datetime_to = DateTime::createFromFormat($this->date_format, $date_to);
 
-		return $this;
-	}
+        $this->date_from = $datetime_from->format('d/m/Y');
+        $this->date_to = $datetime_to->format('d/m/Y');
 
-	public function setCurrency($currency)
-	{
-		$this->currency = $currency;
+        return $this;
+    }
 
-		return $this;
-	}
+    /**
+     * Установка фильтра по валюте.
+     *
+     * @param string $currency
+     * @return $this
+     */
+    public function setCurrency($currency)
+    {
+        $this->currency = $currency;
 
-	public function request()
-	{
-		$this->result = (new Request(Request::URL_CUR_PERIOD, [
-			'date_req1' => $this->date_from,
-			'date_req2' => $this->date_to,
-			'VAL_NM_RQ' => $this->currency
-		]))->request();
+        return $this;
+    }
 
-		return $this;
-	}
+    /**
+     * @inheritDoc
+     */
+    protected function getURL()
+    {
+        return 'http://www.cbr.ru/scripts/XML_dynamic.asp';
+    }
 
-	public function getResult($format = 'Y-m-d')
-	{
-		libxml_use_internal_errors(true);
-		$xml = new \SimpleXMLElement($this->result);
-		$xpath = $xml->xpath('Record');
+    /**
+     * @inheritDoc
+     */
+    protected function getQuery()
+    {
+        return [
+            'date_req1' => $this->date_from,
+            'date_req2' => $this->date_to,
+            'VAL_NM_RQ' => $this->currency
+        ];
+    }
 
-		$result = [];
-		foreach ($xpath as $element) {
-			$date = str_replace('.0', '.', (string)$element->attributes()['Date']);
-			$k = (new \DateTime())->setTimestamp(strtotime($date))->format($format);
+    /**
+     * Получение обработанного результата.
+     *
+     * @return array<string, array{Nominal: int, Value: float}>
+     * @throws Exception
+     */
+    public function getResult()
+    {
+        libxml_use_internal_errors(true);
+        $xml = new SimpleXMLElement($this->result);
+        $xpath = $xml->xpath('Record');
 
-			$result[$k] = [
-				'Nominal' => (int)$element->Nominal,
-				'Value' => (float)(str_replace(',', '.', $element->Value))
-			];
-		}
+        $result = [];
+        foreach ($xpath as $element) {
+            $date = str_replace('.0', '.', (string)$element->attributes()['Date']);
+            $key = (new DateTime())->setTimestamp(strtotime($date))->format($this->date_format);
 
-		return $result;
-	}
+            $result[$key] = [
+                'Nominal' => (int)$element->Nominal,
+                'Value' => (float)(str_replace(',', '.', $element->Value))
+            ];
+        }
 
-	public function getResultXML()
-	{
-		return $this->result;
-	}
+        return $result;
+    }
 }

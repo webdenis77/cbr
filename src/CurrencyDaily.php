@@ -2,120 +2,163 @@
 
 namespace CBR;
 
-class CurrencyDaily
+use DateTime;
+use Exception;
+use RuntimeException;
+use SimpleXMLElement;
+
+class CurrencyDaily extends Resource
 {
-	private $date;
-	private $codes;
-	private $codes_type;
-	private $result;
-	private $result_date;
+    /** @var string */
+    private $date;
 
-	const KEY_CHAR = 1;
-	const KEY_NUM = 2;
-	const KEY_ID = 3;
+    /** @var string[] */
+    private $currencies = [];
 
-	public function setDate($date)
-	{
-		$this->date = $date;
+    /** @var DateTime */
+    private $result_date;
 
-		return $this;
-	}
+    /**
+     * Установка фильтра по дате.
+     *
+     * @param string $date
+     * @return $this
+     */
+    public function setDate($date)
+    {
+        $datetime = DateTime::createFromFormat($this->date_format, $date);
 
-	public function setCodes($codes)
-	{
-		if (!is_array($codes)) {
-			$codes = [$codes];
-		}
+        $this->date = $datetime->format('d/m/Y');
 
-		$this->codes = $codes;
+        return $this;
+    }
 
-		return $this;
-	}
+    /**
+     * Установка фильтра по валютам.
+     *
+     * @param string[] $currencies
+     * @return $this
+     */
+    public function setCurrencies($currencies)
+    {
+        $this->currencies = $currencies;
 
-	public function getResultDate($format = 'Y-m-d')
-	{
-		return $this->result_date->format($format);
-	}
+        return $this;
+    }
 
-	public function request()
-	{
-		$this->result = (new Request(Request::URL_CUR_DAILY, [
-			'date_req' => ((empty($this->date)) ? null : $this->date)
-		]))->request();
+    /**
+     * @inheritDoc
+     */
+    protected function getURL()
+    {
+        return 'http://www.cbr.ru/scripts/XML_daily.asp';
+    }
 
-		return $this;
-	}
+    /**
+     * @inheritDoc
+     */
+    protected function getQuery()
+    {
+        return (empty($this->date))
+            ? []
+            : ['date_req' => $this->date];
+    }
 
-	public function getResult($key = self::KEY_CHAR)
-	{
-		libxml_use_internal_errors(true);
-		$xml = new \SimpleXMLElement($this->result);
+    /**
+     * Получение обработанного результата.
+     *
+     * @return array<string, array{ID: string, NumCode: string, CharCode: string, Nominal: int, Name: string, Value: float}>
+     * @throws Exception
+     */
+    public function getResult()
+    {
+        libxml_use_internal_errors(true);
+        $xml = new SimpleXMLElement($this->result);
 
-		$date = str_replace('.0', '.', (string)$xml->attributes()['Date']);
-		$this->result_date = (new \DateTime())->setTimestamp(strtotime($date));
+        $date = str_replace('.0', '.', (string)$xml->attributes()['Date']);
+        $this->result_date = (new DateTime())->setTimestamp(strtotime($date));
 
-		if (empty($this->codes)) {
-			$xpath = $xml->xpath('Valute');
-			$result = [];
-			foreach ($xpath as $element) {
-				switch ($key) {
-					case self::KEY_CHAR:
-						$k = (string)$element->CharCode;
-						break;
-					case self::KEY_NUM:
-						$k = (string)$element->NumCode;
-						break;
-					case self::KEY_ID:
-						$k = (string)$element->attributes()['ID'];
-						break;
-				}
+        $xpath = $xml->xpath($this->getCurrencyXpath());
+        $result = [];
+        foreach ($xpath as $element) {
+            $key = $this->getElementKey($element);
 
-				$result[$k] = [
-					'ID' => (string)$element->attributes()['ID'],
-					'NumCode' => (string)$element->NumCode,
-					'CharCode' => (string)$element->CharCode,
-					'Nominal' => (int)$element->Nominal,
-					'Name' => (string)$element->Name,
-					'Value' => (float)(str_replace(',', '.', $element->Value))
-				];
-			}
+            $result[$key] = [
+                'ID' => (string)$element->attributes()['ID'],
+                'NumCode' => (string)$element->NumCode,
+                'CharCode' => (string)$element->CharCode,
+                'Nominal' => (int)$element->Nominal,
+                'Name' => (string)$element->Name,
+                'Value' => (float)(str_replace(',', '.', $element->Value))
+            ];
+        }
 
-			return $result;
-		}
+        return $result;
+    }
 
-		$length = count($this->codes);
+    /**
+     * Получение акутальной даты обновления из ответа.
+     *
+     * @return string
+     */
+    public function getResultDate()
+    {
+        return $this->result_date->format($this->date_format);
+    }
 
-		if ($length > 1) {
-			$codes = 'CharCode = "'.$this->codes[0].'"';
-			for ($i = 1; $i < $length; $i++) {
-				$codes .= ' or CharCode = "'.$this->codes[$i].'"';
-			}
-		} else {
-			$codes = 'CharCode = "'.$this->codes[0].'"';
-		}
+    /**
+     * Получение XPATH-апроса для фильтра по валютам.
+     *
+     * @return string
+     */
+    private function getCurrencyXpath()
+    {
+        $codes_count = count($this->currencies);
 
-		$xpath = $xml->xpath('Valute['.$codes.']');
-		$result = [];
-		foreach ($xpath as $element) {
-			$k = ($key == self::KEY_CHAR)
-				? (string)$element->CharCode
-				: (($key == self::KEY_ID) ? (string)$element->attributes()['ID'] : (string)$element->CharCode);
+        if ($codes_count < 1) {
+            return 'Valute';
+        }
 
-			$result[$k] = [
-				'ID' => (string)$element->attributes()['ID'],
-				'NumCode' => (string)$element->NumCode,
-				'CharCode' => (string)$element->CharCode,
-				'Nominal' => (int)$element->Nominal,
-				'Name' => (string)$element->Name,
-				'Value' => (float)(str_replace(',', '.', $element->Value))
-			];
-		}
+        switch ($this->key_format) {
+            case Resource::KEY_CHAR:
+                $key = 'CharCode';
+                break;
+            case Resource::KEY_NUM:
+                $key = 'NumCode';
+                break;
+            case Resource::KEY_ID:
+                $key = '@ID';
+                break;
+            default:
+                throw new RuntimeException("Неопознанный тип ключа: $this->key_format");
+        }
 
-		return $result;
-	}
+        $filter = array_map(function ($row) use ($key) {
+            return sprintf('%s="%s"', $key, $row);
+        }, $this->currencies);
 
-	public function getResultXML()
-	{
-		return $this->result;
-	}
+        $query = implode(' or ', $filter);
+
+        return "Valute[$query]";
+    }
+
+    /**
+     * Получение названия ключа элемента.
+     *
+     * @param SimpleXMLElement $element
+     * @return string
+     */
+    private function getElementKey($element)
+    {
+        switch ($this->key_format) {
+            case self::KEY_CHAR:
+                return (string)$element->CharCode;
+            case self::KEY_NUM:
+                return (string)$element->NumCode;
+            case self::KEY_ID:
+                return (string)$element->attributes()['ID'];
+            default:
+                throw new RuntimeException("Неопознанный тип ключа: $this->key_format");
+        }
+    }
 }

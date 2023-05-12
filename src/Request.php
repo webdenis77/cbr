@@ -2,44 +2,50 @@
 
 namespace CBR;
 
+use RuntimeException;
+
 class Request
 {
-	private $url;
+    /** @var string */
+    private $url;
 
-	const URL_CUR_DAILY = 'http://www.cbr.ru/scripts/XML_daily.asp';
-	const URL_CUR_PERIOD = 'http://www.cbr.ru/scripts/XML_dynamic.asp';
+    /**
+     * @param string                $url
+     * @param array<string, string> $data
+     */
+    public function __construct($url, $data = [])
+    {
+        $this->url = $url . ((empty($data)) ? '' : '?' . http_build_query($data));
+    }
 
-	public function __construct($url, $data)
-	{
-		foreach ($data as $key => $value) {
-			if (empty($value)) {
-				unset($data[$key]);
-			}
-		}
+    /**
+     * Выполнение запроса.
+     *
+     * @return string
+     */
+    public function request()
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-		$this->url = $url.((empty($data)) ? '' : '?'.http_build_query($data));
-	}
+        $result = curl_exec($ch);
+        $info = curl_getinfo($ch);
+        $error = curl_error($ch);
 
-	public function request()
-	{
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $this->url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_close($ch);
 
-		$result = curl_exec($ch);
-		$info = curl_getinfo($ch);
-		$error = curl_error($ch);
+        if ($error) {
+            throw new RuntimeException($error);
+        }
 
-		curl_close($ch);
+        $http_code = $info['http_code'];
+        $http_code_group = (int)floor($http_code / 100);
 
-		if ($error) {
-			throw new \Exception($error);
-		}
+        if ($http_code_group !== 2) {
+            throw new RuntimeException($result, $http_code);
+        }
 
-		if ($info['http_code'] == 404) {
-			throw new \Exception('Неверный URL');
-		}
-
-		return $result;
-	}
+        return $result;
+    }
 }
